@@ -1,27 +1,30 @@
 from flask import Flask, request, jsonify
+from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
 import requests
-from transformers import BlipProcessor, BlipForConditionalGeneration
 import torch
+from io import BytesIO
 
 app = Flask(__name__)
 
-processor = BlipProcessor.from_pretrained("./blip-model")
-model = BlipForConditionalGeneration.from_pretrained("./blip-model")
+# Usa o modelo diretamente do Hugging Face (sem diretório local)
+processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
 
-@app.route("/caption", methods=["POST"])
+@app.route('/caption', methods=['POST'])
 def caption_image():
-    data = request.json
-    image_url = data.get("image_url")
-    if not image_url:
-        return jsonify({"error": "Missing image_url"}), 400
+    data = request.get_json()
+    image_url = data.get('image_url')
 
-    raw_image = Image.open(requests.get(image_url, stream=True).raw).convert("RGB")
-    inputs = processor(images=raw_image, return_tensors="pt")
-    out = model.generate(**inputs)
-    caption = processor.decode(out[0], skip_special_tokens=True)
+    try:
+        image = Image.open(BytesIO(requests.get(image_url).content)).convert('RGB')
+        inputs = processor(image, return_tensors="pt")
+        output = model.generate(**inputs)
+        caption = processor.decode(output[0], skip_special_tokens=True)
+        return jsonify({'caption': caption})
 
-    return jsonify({"caption": caption})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=7860)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=7860)
