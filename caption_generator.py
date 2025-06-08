@@ -1,19 +1,21 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from caption_generator import gerar_caption
+from PIL import Image
+import requests
+from io import BytesIO
+from transformers import BlipProcessor, BlipForConditionalGeneration
 
-app = FastAPI()
+# Carrega modelo uma vez
+processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
 
-class ImageRequest(BaseModel):
-    image_url: str
+def gerar_caption(image_url: str):
+    try:
+        response = requests.get(image_url)
+        image = Image.open(BytesIO(response.content)).convert("RGB")
+    except Exception as e:
+        return {"error": f"Erro ao carregar imagem: {str(e)}"}
 
-@app.post("/caption")
-def caption_image(req: ImageRequest):
-    return gerar_caption(req.image_url)
+    inputs = processor(images=image, return_tensors="pt")
+    output = model.generate(**inputs)
+    caption = processor.decode(output[0], skip_special_tokens=True)
 
-# 🔁 Rodar localmente ou no Render
-if __name__ == "__main__":
-    import uvicorn
-    import os
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("app:app", host="0.0.0.0", port=port)
+    return {"caption": caption}
