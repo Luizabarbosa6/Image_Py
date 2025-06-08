@@ -1,6 +1,6 @@
-flask
-torch
+fastapi
+uvicorn
 transformers
+torch
 Pillow
 requests
-waitress

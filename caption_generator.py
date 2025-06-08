@@ -1,22 +1,19 @@
-import sys
-import base64
-import io
-from PIL import Image
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from fastapi import FastAPI
+from pydantic import BaseModel
+from caption_generator import gerar_caption
 
-# Carrega modelo
-processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+app = FastAPI()
 
-# Lê a imagem em base64 recebida pelo stdin
-image_base64 = sys.stdin.read()
-image_data = base64.b64decode(image_base64)
-image = Image.open(io.BytesIO(image_data)).convert("RGB")
+class ImageRequest(BaseModel):
+    image_url: str
 
-# Processa a imagem
-inputs = processor(image, return_tensors="pt")
-out = model.generate(**inputs)
+@app.post("/caption")
+def caption_image(req: ImageRequest):
+    return gerar_caption(req.image_url)
 
-# Gera legenda
-caption = processor.decode(out[0], skip_special_tokens=True)
-print(caption)
+# 🔁 Rodar localmente ou no Render
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run("app:app", host="0.0.0.0", port=port)
