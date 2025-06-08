@@ -4,3 +4,7 @@ transformers
 torch
 Pillow
 requests
+gradio
+torch
+transformers
+sentencepiece
